@@ -1,16 +1,6 @@
 import { BaseFormatConverter, type FormatConverter } from "chat"
-import {
-  type Root,
-  type Content,
-  type Text,
-  type Paragraph,
-  type Strong,
-  type Emphasis,
-  type Delete,
-  type InlineCode,
-  type Code,
-  type Link,
-} from "mdast"
+import type { Root as MdastRoot, Content as MdastContent, Text as MdastText, Paragraph, Strong, Emphasis, Delete, InlineCode, Code as MdastCode, Link } from "chat"
+import type { RootContent, Text, Bold, Italic, Underline, Strikethrough, Spoiler, Code, Pre, TextLink, TextMention } from "@qz/tgast"
 
 export interface TelegramEntity {
   type: string
@@ -18,6 +8,8 @@ export interface TelegramEntity {
   length: number
   url?: string
   language?: string
+  custom_emoji_id?: string
+  user?: { id: number; first_name: string; is_bot?: boolean }
 }
 
 function escapeHtml(text: string): string {
@@ -28,28 +20,32 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;")
 }
 
-function textNode(value: string): Text {
+function tgastText(value: string): Text {
   return { type: "text", value }
 }
 
-function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[] {
+function childrenValue(children: RootContent[]): string {
+  return children.map((c) => ("value" in c ? c.value : "")).join("")
+}
+
+function parseEntitiesToTgast(text: string, entities?: TelegramEntity[]): RootContent[] {
   if (!entities || entities.length === 0) {
-    return [textNode(text)]
+    return [tgastText(text)]
   }
 
   const sorted = [...entities].sort((a, b) => a.offset - b.offset || b.length - a.length)
 
-  const result: Content[] = []
+  const result: RootContent[] = []
   let pos = 0
-  const stack: { entity: TelegramEntity; children: Content[] }[] = []
+  const stack: { entity: TelegramEntity; children: RootContent[] }[] = []
 
   for (const entity of sorted) {
     while (stack.length > 0) {
       const top = stack[stack.length - 1]!
       const topEnd = top.entity.offset + top.entity.length
       if (entity.offset >= topEnd) {
-        const top2 = stack.pop()!
-        const node = buildEntityNode(top2.entity, top2.children)
+        const topNode = stack.pop()!
+        const node = buildTgastNode(topNode.entity, topNode.children)
         if (stack.length > 0) {
           stack[stack.length - 1]!.children.push(node)
         } else {
@@ -61,7 +57,7 @@ function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[
     }
 
     if (entity.offset > pos) {
-      const raw = textNode(text.slice(pos, entity.offset))
+      const raw = tgastText(text.slice(pos, entity.offset))
       if (stack.length > 0) {
         stack[stack.length - 1]!.children.push(raw)
       } else {
@@ -77,10 +73,10 @@ function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[
     const top = stack.pop()!
     const topEnd = top.entity.offset + top.entity.length
     if (topEnd > pos) {
-      top.children.push(textNode(text.slice(pos, topEnd)))
+      top.children.push(tgastText(text.slice(pos, topEnd)))
       pos = topEnd
     }
-    const node = buildEntityNode(top.entity, top.children)
+    const node = buildTgastNode(top.entity, top.children)
     if (stack.length > 0) {
       stack[stack.length - 1]!.children.push(node)
     } else {
@@ -89,14 +85,14 @@ function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[
   }
 
   if (pos < text.length) {
-    result.push(textNode(text.slice(pos)))
+    result.push(tgastText(text.slice(pos)))
   }
 
   return mergeAdjacentText(result)
 }
 
-function mergeAdjacentText(children: Content[]): Content[] {
-  const result: Content[] = []
+function mergeAdjacentText(children: RootContent[]): RootContent[] {
+  const result: RootContent[] = []
   for (const child of children) {
     if (child.type === "text" && result.length > 0 && result[result.length - 1]!.type === "text") {
       const prev = result[result.length - 1] as Text
@@ -108,77 +104,128 @@ function mergeAdjacentText(children: Content[]): Content[] {
   return result
 }
 
-function buildEntityNode(entity: TelegramEntity, children: Content[]): Content {
+function buildTgastNode(entity: TelegramEntity, children: RootContent[]): RootContent {
   switch (entity.type) {
     case "bold":
-      return { type: "strong", children } as Strong
+      return { type: "bold", children } as Bold
     case "italic":
-      return { type: "emphasis", children } as Emphasis
+      return { type: "italic", children } as Italic
     case "underline":
-      return {
-        type: "text",
-        value: children.map((c) => ("value" in c ? c.value : "")).join(""),
-      } as Text
+      return { type: "underline", children } as Underline
     case "strikethrough":
-      return { type: "delete", children } as Delete
+      return { type: "strikethrough", children } as Strikethrough
     case "spoiler":
-      return {
-        type: "text",
-        value: children.map((c) => ("value" in c ? c.value : "")).join(""),
-      } as Text
+      return { type: "spoiler", children } as Spoiler
     case "code":
-      return {
-        type: "inlineCode",
-        value: children.map((c) => ("value" in c ? c.value : "")).join(""),
-      } as InlineCode
+      return { type: "code", value: childrenValue(children) } as Code
     case "pre":
-      return {
-        type: "code",
-        lang: entity.language || undefined,
-        value: children.map((c) => ("value" in c ? c.value : "")).join(""),
-      } as Code
+      return { type: "pre", value: childrenValue(children), language: entity.language } as Pre
     case "text_link":
-      return {
-        type: "link",
-        url: entity.url || "",
-        children,
-      } as Link
+      return { type: "text_link", value: childrenValue(children), url: entity.url || "" } as TextLink
     case "text_mention":
-      return {
-        type: "link",
-        url: `tg://user?id=${children.map((c) => ("value" in c ? c.value : "")).join("")}`,
-        children,
-      } as Link
+      return { type: "text_mention", value: childrenValue(children), user: { id: entity.user?.id ?? 0, first_name: entity.user?.first_name ?? "", is_bot: entity.user?.is_bot } } as TextMention
     default:
-      return children.length > 0 ? children[0]! : textNode("")
+      return children.length > 0 ? children[0]! : tgastText("")
   }
 }
 
+function tgastChildrenToHtml(children: RootContent[]): string {
+  return children.map((c) => tgastNodeToHtml(c)).join("")
+}
+
+function tgastNodeToHtml(node: RootContent): string {
+  switch (node.type) {
+    case "text":
+      return escapeHtml(node.value)
+    case "bold":
+      return `<b>${tgastChildrenToHtml(node.children)}</b>`
+    case "italic":
+      return `<i>${tgastChildrenToHtml(node.children)}</i>`
+    case "underline":
+      return `<u>${tgastChildrenToHtml(node.children)}</u>`
+    case "strikethrough":
+      return `<s>${tgastChildrenToHtml(node.children)}</s>`
+    case "spoiler":
+      return `<tg-spoiler>${tgastChildrenToHtml(node.children)}</tg-spoiler>`
+    case "code":
+      return `<code>${escapeHtml(node.value)}</code>`
+    case "pre":
+      if (node.language) {
+        return `<pre><code class="language-${escapeHtml(node.language)}">${escapeHtml(node.value)}</code></pre>`
+      }
+      return `<pre>${escapeHtml(node.value)}</pre>`
+    case "text_link":
+      return `<a href="${escapeHtml(node.url)}">${escapeHtml(node.value)}</a>`
+    case "text_mention":
+      return `<a href="tg://user?id=${node.user.id}">${escapeHtml(node.value)}</a>`
+    default:
+      if ("children" in node && Array.isArray(node.children)) {
+        return tgastChildrenToHtml(node.children as RootContent[])
+      }
+      if ("value" in node && typeof node.value === "string") {
+        return escapeHtml(node.value)
+      }
+      return ""
+  }
+}
+
+function tgastToMdast(children: RootContent[]): MdastContent[] {
+  return children.map((node): MdastContent => {
+    switch (node.type) {
+      case "bold":
+        return { type: "strong", children: tgastToMdast(node.children) } as Strong
+      case "italic":
+        return { type: "emphasis", children: tgastToMdast(node.children) } as Emphasis
+      case "underline":
+        return { type: "text", value: childrenValue(node.children) } as MdastText
+      case "strikethrough":
+        return { type: "delete", children: tgastToMdast(node.children) } as Delete
+      case "spoiler":
+        return { type: "text", value: childrenValue(node.children) } as MdastText
+      case "code":
+        return { type: "inlineCode", value: node.value } as InlineCode
+      case "pre":
+        return { type: "code", lang: node.language || null, value: node.value } as MdastCode
+      case "text_link":
+        return { type: "link", url: node.url, children: [{ type: "text", value: node.value }] } as Link
+      case "text_mention":
+        return { type: "link", url: `tg://user?id=${node.user.id}`, children: [{ type: "text", value: node.value }] } as Link
+      case "text":
+        return { type: "text", value: node.value } as MdastText
+      default:
+        if ("value" in node && typeof node.value === "string") {
+          return { type: "text", value: node.value } as MdastText
+        }
+        return { type: "text", value: "" } as MdastText
+    }
+  })
+}
+
 export class TelegramConverter extends BaseFormatConverter implements FormatConverter {
-  fromAst(ast: Root): string {
-    return ast.children.map((child: Content) => this.nodeToHtml(child)).join("\n\n")
+  fromAst(ast: MdastRoot): string {
+    return ast.children.map((child: MdastContent) => this.mdastNodeToHtml(child)).join("\n\n")
   }
 
-  private nodeToHtml(node: Content): string {
-    const n = node as unknown as { type: string; children?: Content[]; value?: string; lang?: string; url?: string; ordered?: boolean }
+  private mdastNodeToHtml(node: MdastContent): string {
+    const n = node as unknown as { type: string; children?: MdastContent[]; value?: string; lang?: string; url?: string; ordered?: boolean }
     switch (n.type) {
       case "paragraph":
-        return n.children!.map((c: Content) => this.nodeToHtml(c)).join("")
+        return n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")
 
       case "text":
         return escapeHtml(n.value!)
 
       case "strong":
-        return `<b>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</b>`
+        return `<b>${n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")}</b>`
 
       case "emphasis":
-        return `<i>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</i>`
+        return `<i>${n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")}</i>`
 
       case "underline":
-        return `<u>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</u>`
+        return `<u>${n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")}</u>`
 
       case "delete":
-        return `<s>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</s>`
+        return `<s>${n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")}</s>`
 
       case "inlineCode":
         return `<code>${escapeHtml(n.value!)}</code>`
@@ -190,27 +237,27 @@ export class TelegramConverter extends BaseFormatConverter implements FormatConv
         return `<pre>${escapeHtml(n.value!)}</pre>`
 
       case "link":
-        return `<a href="${escapeHtml(n.url!)}">${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</a>`
+        return `<a href="${escapeHtml(n.url!)}">${n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")}</a>`
 
       case "blockquote":
-        return `<blockquote>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</blockquote>`
+        return `<blockquote>${n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")}</blockquote>`
 
       case "list":
         return n.children!
-          .map((item: Content, i: number) => {
+          .map((item: MdastContent, i: number) => {
             if (item.type !== "listItem") return ""
             const prefix = n.ordered ? `${i + 1}. ` : "• "
-            return item.children!.map((c: Content) => `${prefix}${this.nodeToHtml(c)}`).join("\n")
+            return (item as unknown as { children: MdastContent[] }).children!.map((c: MdastContent) => `${prefix}${this.mdastNodeToHtml(c)}`).join("\n")
           })
           .join("\n")
 
       case "listItem":
-        return n.children!.map((c: Content) => this.nodeToHtml(c)).join("")
+        return (n as unknown as { children: MdastContent[] }).children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")
 
       default:
         if ("children" in node) {
-          return (node as unknown as { children: Content[] }).children
-            .map((c: Content) => this.nodeToHtml(c))
+          return (node as unknown as { children: MdastContent[] }).children
+            .map((c: MdastContent) => this.mdastNodeToHtml(c))
             .join("")
         }
         if ("value" in node) {
@@ -220,23 +267,24 @@ export class TelegramConverter extends BaseFormatConverter implements FormatConv
     }
   }
 
-  toAst(platformText: string): Root {
+  toAst(platformText: string): MdastRoot {
     return this.toAstWithEntities(platformText)
   }
 
-  toAstWithEntities(platformText: string, entities?: TelegramEntity[]): Root {
+  toAstWithEntities(platformText: string, entities?: TelegramEntity[]): MdastRoot {
     if (!platformText) {
       return { type: "root", children: [] }
     }
-    const children = parseEntitiesToAst(platformText, entities)
+    const tgastChildren = parseEntitiesToTgast(platformText, entities)
+    const mdastChildren = tgastToMdast(tgastChildren)
 
-    if (children.length === 1 && children[0]!.type === "paragraph") {
-      return { type: "root", children: children[0] ? [children[0]] : [] }
+    if (mdastChildren.length === 1 && mdastChildren[0]!.type === "paragraph") {
+      return { type: "root", children: [mdastChildren[0]] }
     }
 
     return {
       type: "root",
-      children: [{ type: "paragraph", children } as Paragraph],
+      children: [{ type: "paragraph", children: mdastChildren } as Paragraph],
     }
   }
 }

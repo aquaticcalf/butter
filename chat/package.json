@@ -7,6 +7,6 @@
     "grammy": "^1.43.0"
   },
   "devDependencies": {
-    "@types/mdast": "^4.0.4"
+    "@qz/tgast": "npm:@jsr/qz__tgast@1.2.5"
   }
 }
