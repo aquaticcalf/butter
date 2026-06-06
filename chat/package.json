@@ -1,0 +1,8 @@
+{
+  "name": "chat",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "chat": "^4.30.0"
+  }
+}
