@@ -3,6 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "ai": "^6.0.197"
+    "@earendil-works/pi-coding-agent": "^0.78.1"
   }
 }
