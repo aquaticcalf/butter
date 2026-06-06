@@ -1,0 +1,8 @@
+{
+  "name": "agent",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "ai": "^6.0.197"
+  }
+}
