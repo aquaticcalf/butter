@@ -8,5 +8,13 @@
       "onFail": "download"
     }
   },
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "fix": "oxfmt -c config/oxfmt.json && oxlint -c config/oxlint.json --fix && tsc --noEmit"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.53.0",
+    "oxlint": "^1.68.0",
+    "typescript": "^6.0.3"
+  }
 }
