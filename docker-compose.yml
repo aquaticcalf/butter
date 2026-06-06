@@ -1,11 +1,11 @@
 services:
-    toast:
-        build: .
-        container_name: butter
-        restart: unless-stopped
-        environment:
-            - TELEGRAM_BOT_TOKEN
-        ports:
-            - "8000-8100:8000-8100"
-        volumes:
-            - ${BUTTER_STORAGE_PATH}:/root
+  toast:
+    build: .
+    container_name: butter
+    restart: unless-stopped
+    environment:
+      - TELEGRAM_BOT_TOKEN
+    ports:
+      - "8000-8100:8000-8100"
+    volumes:
+      - ${BUTTER_STORAGE_PATH}:/root
