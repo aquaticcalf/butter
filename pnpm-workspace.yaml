@@ -1,3 +1,6 @@
 packages:
   - "agent"
   - "chat"
+  - "db"
+allowBuilds:
+  better-sqlite3: true
