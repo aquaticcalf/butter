@@ -7,13 +7,14 @@ export type AppConfig = {
   chat?: Partial<Omit<ChatConfig, "adapters" | "state">>
 }
 
-export function createApp(config: AppConfig) {
+export async function createApp(config: AppConfig) {
   const telegram = new TelegramAdapter(config.telegram)
+  const { username } = await telegram.api.getMe()
 
   const state = createMemoryState()
 
   const chat = new Chat({
-    userName: "telegram",
+    userName: username ?? "",
     adapters: { telegram },
     state,
     ...config.chat,
