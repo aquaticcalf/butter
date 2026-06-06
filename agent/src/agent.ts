@@ -1,7 +1,7 @@
 import { createAgentSession, AuthStorage, ModelRegistry, SessionManager, defineTool, getAgentDir, type CreateAgentSessionOptions, type AgentSession, type AgentSessionEvent } from '@earendil-works/pi-coding-agent'
 import { Type } from 'typebox'
 import type { TSchema } from 'typebox'
-import type { AgentConfig, AgentEvent, AgentHandle, ImageAttachment, SessionInfo, ToolDef } from './types.js'
+import type { AgentConfig, AgentEvent, AgentHandle, ImageAttachment, SessionInfo, ToolDef } from './types'
 
 function toPiTool(tool: ToolDef) {
   const props: Record<string, TSchema> = {}

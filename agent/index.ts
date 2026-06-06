@@ -1,4 +1,4 @@
-export { createAgent } from './src/agent.js'
+export { createAgent } from './src/agent'
 export type {
   ToolParam,
   ToolDef,
@@ -9,4 +9,4 @@ export type {
   SessionInfo,
   ImageAttachment,
   AgentHandle,
-} from './src/types.js'
+} from './src/types'
