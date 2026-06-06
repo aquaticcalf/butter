@@ -84,7 +84,7 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
 
     this.bot = new Bot(config.token, {
       client: {
-        baseFetchConfig: fallbackFetch,
+        baseFetchConfig: fallbackFetch as any,
       },
     })
 
@@ -166,10 +166,13 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
         process.env.TELEGRAM_WEBHOOK_SECRET ||
         process.env.TELEGRAM_WEBHOOK_SECRET
 
-      await this.bot.api.setWebhook(webhookUrl, {
-        secret_token: secret,
-        allowed_updates: this.config.allowedUpdates as never,
-      })
+      const webhookParams: Record<string, unknown> = {
+        allowed_updates: this.config.allowedUpdates,
+      }
+      if (secret !== undefined) {
+        webhookParams.secret_token = secret
+      }
+      await this.bot.api.setWebhook(webhookUrl, webhookParams as never)
     } catch (err) {
       console.error("Failed to set up webhook:", err)
       startBot(this.bot)
@@ -686,7 +689,7 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
 
     const state: TypingState = {
       chatId,
-      threadId,
+      threadId: threadId,
       timer: setTimeout(() => {}),
       active: true,
     }
@@ -694,9 +697,11 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
     const sendTyping = async () => {
       if (!state.active) return
       try {
-        await this.bot.api.sendChatAction(chatId, "typing", {
-          message_thread_id: threadId,
-        })
+        const actionParams: Record<string, unknown> = {}
+        if (threadId !== undefined) {
+          actionParams.message_thread_id = threadId
+        }
+        await this.bot.api.sendChatAction(chatId, "typing", actionParams as never)
       } catch {}
       if (state.active) {
         state.timer = setTimeout(sendTyping, 5000)

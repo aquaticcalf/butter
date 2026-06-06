@@ -80,7 +80,7 @@ async function resolveTelegramIps(): Promise<string[]> {
 }
 
 export function createFallbackFetch(proxyUrl?: string): typeof fetch {
-  return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
     const parsed = new URL(url)
 

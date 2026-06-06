@@ -45,13 +45,13 @@ function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[
 
   for (const entity of sorted) {
     while (stack.length > 0) {
-      const top = stack[stack.length - 1]
+      const top = stack[stack.length - 1]!
       const topEnd = top.entity.offset + top.entity.length
       if (entity.offset >= topEnd) {
         const top2 = stack.pop()!
         const node = buildEntityNode(top2.entity, top2.children)
         if (stack.length > 0) {
-          stack[stack.length - 1].children.push(node)
+          stack[stack.length - 1]!.children.push(node)
         } else {
           result.push(node)
         }
@@ -63,7 +63,7 @@ function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[
     if (entity.offset > pos) {
       const raw = textNode(text.slice(pos, entity.offset))
       if (stack.length > 0) {
-        stack[stack.length - 1].children.push(raw)
+        stack[stack.length - 1]!.children.push(raw)
       } else {
         result.push(raw)
       }
@@ -82,7 +82,7 @@ function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[
     }
     const node = buildEntityNode(top.entity, top.children)
     if (stack.length > 0) {
-      stack[stack.length - 1].children.push(node)
+      stack[stack.length - 1]!.children.push(node)
     } else {
       result.push(node)
     }
@@ -98,7 +98,7 @@ function parseEntitiesToAst(text: string, entities?: TelegramEntity[]): Content[
 function mergeAdjacentText(children: Content[]): Content[] {
   const result: Content[] = []
   for (const child of children) {
-    if (child.type === "text" && result.length > 0 && result[result.length - 1].type === "text") {
+    if (child.type === "text" && result.length > 0 && result[result.length - 1]!.type === "text") {
       const prev = result[result.length - 1] as Text
       prev.value += (child as Text).value
     } else {
@@ -150,66 +150,67 @@ function buildEntityNode(entity: TelegramEntity, children: Content[]): Content {
         children,
       } as Link
     default:
-      return children.length > 0 ? children[0] : textNode("")
+      return children.length > 0 ? children[0]! : textNode("")
   }
 }
 
 export class TelegramConverter extends BaseFormatConverter implements FormatConverter {
   fromAst(ast: Root): string {
-    return ast.children.map((child) => this.nodeToHtml(child)).join("\n\n")
+    return ast.children.map((child: Content) => this.nodeToHtml(child)).join("\n\n")
   }
 
   private nodeToHtml(node: Content): string {
-    switch (node.type) {
+    const n = node as unknown as { type: string; children?: Content[]; value?: string; lang?: string; url?: string; ordered?: boolean }
+    switch (n.type) {
       case "paragraph":
-        return node.children.map((c) => this.nodeToHtml(c)).join("")
+        return n.children!.map((c: Content) => this.nodeToHtml(c)).join("")
 
       case "text":
-        return escapeHtml(node.value)
+        return escapeHtml(n.value!)
 
       case "strong":
-        return `<b>${node.children.map((c) => this.nodeToHtml(c)).join("")}</b>`
+        return `<b>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</b>`
 
       case "emphasis":
-        return `<i>${node.children.map((c) => this.nodeToHtml(c)).join("")}</i>`
+        return `<i>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</i>`
 
       case "underline":
-        return `<u>${node.children.map((c) => this.nodeToHtml(c)).join("")}</u>`
+        return `<u>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</u>`
 
       case "delete":
-        return `<s>${node.children.map((c) => this.nodeToHtml(c)).join("")}</s>`
+        return `<s>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</s>`
 
       case "inlineCode":
-        return `<code>${escapeHtml(node.value)}</code>`
+        return `<code>${escapeHtml(n.value!)}</code>`
 
       case "code":
-        if (node.lang) {
-          return `<pre><code class="language-${escapeHtml(node.lang)}">${escapeHtml(node.value)}</code></pre>`
+        if (n.lang) {
+          return `<pre><code class="language-${escapeHtml(n.lang)}">${escapeHtml(n.value!)}</code></pre>`
         }
-        return `<pre>${escapeHtml(node.value)}</pre>`
+        return `<pre>${escapeHtml(n.value!)}</pre>`
 
       case "link":
-        return `<a href="${escapeHtml(node.url)}">${node.children.map((c) => this.nodeToHtml(c)).join("")}</a>`
+        return `<a href="${escapeHtml(n.url!)}">${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</a>`
 
       case "blockquote":
-        return `<blockquote>${node.children.map((c) => this.nodeToHtml(c)).join("")}</blockquote>`
+        return `<blockquote>${n.children!.map((c: Content) => this.nodeToHtml(c)).join("")}</blockquote>`
 
       case "list":
-        return node.children
-          .map((item, i) => {
+        return n.children!
+          .map((item: Content, i: number) => {
             if (item.type !== "listItem") return ""
-            const prefix = node.ordered ? `${i + 1}. ` : "• "
-            return item.children.map((c) => `${prefix}${this.nodeToHtml(c)}`).join("\n")
+            const prefix = n.ordered ? `${i + 1}. ` : "• "
+            return item.children!.map((c: Content) => `${prefix}${this.nodeToHtml(c)}`).join("\n")
           })
           .join("\n")
 
       case "listItem":
-        return node.children.map((c) => this.nodeToHtml(c)).join("")
+        return n.children!.map((c: Content) => this.nodeToHtml(c)).join("")
 
       default:
         if ("children" in node) {
           return (node as unknown as { children: Content[] }).children
-            .map((c) => this.nodeToHtml(c))
+            .map((c: Content) => this.nodeToHtml(c))
             .join("")
         }
         if ("value" in node) {
@@ -229,7 +230,7 @@ export class TelegramConverter extends BaseFormatConverter implements FormatConv
     }
     const children = parseEntitiesToAst(platformText, entities)
 
-    if (children.length === 1 && children[0].type === "paragraph") {
+    if (children.length === 1 && children[0]!.type === "paragraph") {
       return { type: "root", children: children[0] ? [children[0]] : [] }
     }
 

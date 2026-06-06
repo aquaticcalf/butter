@@ -92,7 +92,7 @@ export interface ConversationEntry {
 
 export interface TypingState {
   chatId: number
-  threadId?: number
+  threadId: number | undefined
   timer: ReturnType<typeof setTimeout>
   active: boolean
 }
