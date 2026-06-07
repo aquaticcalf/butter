@@ -77,6 +77,8 @@ export async function promoteChatMember(
     if (rights?.can_restrict_members !== undefined) promoteParams.can_restrict_members = rights.can_restrict_members
     if (rights?.can_pin_messages !== undefined) promoteParams.can_pin_messages = rights.can_pin_messages
     if (rights?.can_promote_members !== undefined) promoteParams.can_promote_members = rights.can_promote_members
+    if (rights?.can_manage_chat !== undefined) promoteParams.can_manage_chat = rights.can_manage_chat
+    if (rights?.can_manage_topics !== undefined) promoteParams.can_manage_topics = rights.can_manage_topics
     await bot.api.promoteChatMember(chatId, userId, promoteParams as never)
   } catch {}
 }

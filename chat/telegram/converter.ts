@@ -129,46 +129,6 @@ function buildTgastNode(entity: TelegramEntity, children: RootContent[]): RootCo
   }
 }
 
-function tgastChildrenToHtml(children: RootContent[]): string {
-  return children.map((c) => tgastNodeToHtml(c)).join("")
-}
-
-function tgastNodeToHtml(node: RootContent): string {
-  switch (node.type) {
-    case "text":
-      return escapeHtml(node.value)
-    case "bold":
-      return `<b>${tgastChildrenToHtml(node.children)}</b>`
-    case "italic":
-      return `<i>${tgastChildrenToHtml(node.children)}</i>`
-    case "underline":
-      return `<u>${tgastChildrenToHtml(node.children)}</u>`
-    case "strikethrough":
-      return `<s>${tgastChildrenToHtml(node.children)}</s>`
-    case "spoiler":
-      return `<tg-spoiler>${tgastChildrenToHtml(node.children)}</tg-spoiler>`
-    case "code":
-      return `<code>${escapeHtml(node.value)}</code>`
-    case "pre":
-      if (node.language) {
-        return `<pre><code class="language-${escapeHtml(node.language)}">${escapeHtml(node.value)}</code></pre>`
-      }
-      return `<pre>${escapeHtml(node.value)}</pre>`
-    case "text_link":
-      return `<a href="${escapeHtml(node.url)}">${escapeHtml(node.value)}</a>`
-    case "text_mention":
-      return `<a href="tg://user?id=${node.user.id}">${escapeHtml(node.value)}</a>`
-    default:
-      if ("children" in node && Array.isArray(node.children)) {
-        return tgastChildrenToHtml(node.children as RootContent[])
-      }
-      if ("value" in node && typeof node.value === "string") {
-        return escapeHtml(node.value)
-      }
-      return ""
-  }
-}
-
 function tgastToMdast(children: RootContent[]): MdastContent[] {
   return children.map((node): MdastContent => {
     switch (node.type) {

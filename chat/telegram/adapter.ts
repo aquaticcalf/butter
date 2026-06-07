@@ -1,7 +1,7 @@
 import {
   type Adapter,
   type ChatInstance,
-  Message,
+  type Message,
   type RawMessage,
   type FetchResult,
   type FetchOptions,
@@ -21,15 +21,11 @@ import { startBot, stopBot } from "./polling"
 import type {
   TelegramAdapterConfig,
   TelegramThreadId,
-  QueuedMessage,
   ClarifyState,
   ConversationEntry,
   TypingState,
 } from "./types"
-import {
-  TELEGRAM_DEFAULT_MEDIA_GROUP_DEBOUNCE_MS,
-  TELEGRAM_DEFAULT_MAX_DOCUMENT_BYTES,
-} from "./types"
+import { TELEGRAM_DEFAULT_MEDIA_GROUP_DEBOUNCE_MS } from "./types"
 import { createFallbackFetch } from "./network"
 
 import * as messages from "./messages"
@@ -55,15 +51,12 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
   private chatInstance?: ChatInstance
 
   private readonly config: TelegramAdapterConfig
-  private readonly maxDocumentBytes: number
   private readonly mediaGroupEvents = new Map<
     string,
     { events: object[]; timer: ReturnType<typeof setTimeout> }
   >()
-  private readonly pendingMessages: QueuedMessage[] = []
   private botUsername = ""
   private topicCache = new Map<string, number>()
-  private senderRunningRef = { value: false }
   private chatInstanceRef = { current: undefined as ChatInstance | undefined }
 
   private botUsernameRef = { current: "" }
@@ -78,7 +71,6 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
     this.userName = config.userName ?? "telegram_bot"
     this.converter = new TelegramConverter()
     this.persistThreadHistory = config.persistThreadHistory ?? true
-    this.maxDocumentBytes = config.maxDocumentBytes ?? TELEGRAM_DEFAULT_MAX_DOCUMENT_BYTES
 
     const fallbackFetch = createFallbackFetch(config.proxyUrl)
 
@@ -94,7 +86,6 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
       bot: this.bot,
       chatInstanceRef: this.chatInstanceRef,
       encodeThreadId: (id: number) => this.encodeThreadId(id),
-      decodeThreadId: (id: string) => this.decodeThreadId(id),
       parseMessage: this.parseMessage.bind(this),
       parseAuthor: this.parseAuthor.bind(this),
       mediaGroupEvents: this.mediaGroupEvents,
@@ -131,8 +122,6 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
     } else {
       startBot(this.bot)
     }
-
-    this.startSender()
   }
 
   private async setBotProfile(): Promise<void> {
@@ -180,7 +169,6 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
   }
 
   async disconnect(): Promise<void> {
-    this.senderRunningRef.value = false
     for (const [, state] of this.typingStates) {
       clearTimeout(state.timer)
     }
@@ -220,8 +208,6 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
       this.converter,
       (id) => this.decodeThreadId(id),
       (id) => this.encodeThreadId(id),
-      this.pendingMessages,
-      () => this.startSender(),
       threadId,
       message,
     )
@@ -237,8 +223,6 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
       this.converter,
       (id) => this.decodeThreadId(id),
       (id) => this.encodeThreadId(id),
-      this.pendingMessages,
-      () => this.startSender(),
       channelId,
       message,
     )
@@ -255,8 +239,6 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
       this.converter,
       (id) => this.decodeThreadId(id),
       (id) => this.encodeThreadId(id),
-      this.pendingMessages,
-      () => this.startSender(),
       threadId,
       messageId,
       message,
@@ -799,9 +781,5 @@ export class TelegramAdapter implements Adapter<TelegramThreadId, object> {
 
   get converterInstance(): TelegramConverter {
     return this.converter
-  }
-
-  private startSender(): void {
-    messages.processSenderQueue(this.bot, this.pendingMessages, this.senderRunningRef)
   }
 }

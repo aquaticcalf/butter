@@ -238,9 +238,9 @@ importers:
         specifier: ^1.43.0
         version: 1.43.0
     devDependencies:
-      '@types/mdast':
-        specifier: ^4.0.4
-        version: 4.0.4
+      '@qz/tgast':
+        specifier: npm:@jsr/qz__tgast@1.2.5
+        version: '@jsr/qz__tgast@1.2.5'
 
   db:
     dependencies:
@@ -412,6 +412,9 @@ packages:
 
   '@grammyjs/types@3.27.3':
     resolution: {integrity: sha512-yUKMLliGsGbnxu96YUJ7km7B0zy4PzeH/Jvti5705R/LeKDMqkDV4DckMSt+OrliWQpTwQljHE0QLol5zgxBkg==}
+
+  '@jsr/qz__tgast@1.2.5':
+    resolution: {integrity: sha512-6ReV+qHtSIu3DF8iLiuziov5Mx8m8eXwPzPkNA4pDT9fOQwlpYQhA+BEX8RiDM2Cg7O6V6l9U9QIRO/JZkA8aQ==, tarball: https://npm.jsr.io/~/11/@jsr/qz__tgast/1.2.5.tgz}
 
   '@mariozechner/clipboard-darwin-arm64@0.3.9':
     resolution: {integrity: sha512-BfgV7vCEWZwJwZJw03r6bP5+tf0iI/ANuQYCxi9RNn7FrWB3yzGuMKCrNLRl6V761vXRdL8+OqZ0wd4TqlsNOQ==}
@@ -1950,6 +1953,10 @@ snapshots:
       - utf-8-validate
 
   '@grammyjs/types@3.27.3': {}
+
+  '@jsr/qz__tgast@1.2.5':
+    dependencies:
+      '@types/unist': 3.0.3
 
   '@mariozechner/clipboard-darwin-arm64@0.3.9':
     optional: true

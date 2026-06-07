@@ -2,7 +2,7 @@ import { type RawMessage, type AdapterPostableMessage, parseMarkdown } from "cha
 import { GrammyError, HttpError } from "grammy"
 import type { Bot } from "grammy"
 import { TelegramConverter } from "./converter"
-import type { TelegramAdapterConfig, QueuedMessage } from "./types"
+import type { TelegramAdapterConfig } from "./types"
 import { TELEGRAM_MESSAGE_MAX_LENGTH } from "./types"
 
 export async function postMessage(
@@ -11,23 +11,11 @@ export async function postMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   threadId: string,
   message: AdapterPostableMessage,
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(threadId)
-  return sendOrEditMessage(
-    bot,
-    config,
-    converter,
-    decodeThreadId,
-    encodeThreadId,
-    pendingMessages,
-    startSender,
-    chatId,
-    message,
-  )
+  return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
 }
 
 export async function postChannelMessage(
@@ -36,23 +24,11 @@ export async function postChannelMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   channelId: string,
   message: AdapterPostableMessage,
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(channelId)
-  return sendOrEditMessage(
-    bot,
-    config,
-    converter,
-    decodeThreadId,
-    encodeThreadId,
-    pendingMessages,
-    startSender,
-    chatId,
-    message,
-  )
+  return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
 }
 
 export async function editMessage(
@@ -61,8 +37,6 @@ export async function editMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   threadId: string,
   messageId: string,
   message: AdapterPostableMessage,
@@ -104,34 +78,14 @@ export async function editMessage(
     try {
       await bot.api.deleteMessage(chatId, Number(messageId))
     } catch {}
-    return sendOrEditMessage(
-      bot,
-      config,
-      converter,
-      decodeThreadId,
-      encodeThreadId,
-      pendingMessages,
-      startSender,
-      chatId,
-      message,
-    )
+    return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
   }
 
   try {
     await bot.api.deleteMessage(chatId, Number(messageId))
   } catch {}
 
-  return sendOrEditMessage(
-    bot,
-    config,
-    converter,
-    decodeThreadId,
-    encodeThreadId,
-    pendingMessages,
-    startSender,
-    chatId,
-    message,
-  )
+  return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
 }
 
 export async function deleteMessage(
@@ -198,8 +152,6 @@ async function sendOrEditMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   chatId: number,
   message: AdapterPostableMessage,
   replyToMessageId?: number,
@@ -383,59 +335,4 @@ export function isTransientError(err: unknown): boolean {
   return false
 }
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
 
-export function processSenderQueue(
-  bot: Bot,
-  pendingMessages: QueuedMessage[],
-  senderRunningRef: { value: boolean },
-): void {
-  const run = async () => {
-    while (senderRunningRef.value) {
-      const item = pendingMessages.shift()
-      if (!item) {
-        await sleep(100)
-        continue
-      }
-
-      try {
-        let result: { message_id: number }
-
-        if (item.isEdit && item.editMessageId) {
-          const editQueueParams: Record<string, unknown> = {
-            parse_mode: item.parseMode,
-            reply_markup: item.replyMarkup,
-          }
-          if (item.disableLinkPreview) editQueueParams.link_preview_options = { is_disabled: true }
-          const r = await bot.api.editMessageText(item.chatId, item.editMessageId, item.text, editQueueParams as never)
-          result = r as unknown as { message_id: number }
-        } else {
-          const sendQueueParams: Record<string, unknown> = {
-            parse_mode: item.parseMode,
-            reply_markup: item.replyMarkup,
-            message_thread_id: item.messageThreadId,
-            reply_to_message_id: item.replyToMessageId,
-          }
-          if (item.disableLinkPreview) sendQueueParams.link_preview_options = { is_disabled: true }
-          const r = await bot.api.sendMessage(item.chatId, item.text, sendQueueParams as never)
-          result = r as unknown as { message_id: number }
-        }
-
-        item.resolve({ messageId: result.message_id })
-      } catch (err) {
-        if (isMessageNotModifiedError(err)) {
-          item.resolve({ messageId: item.editMessageId ?? 0 })
-        } else if (isTransientError(err)) {
-          pendingMessages.unshift(item)
-          await sleep(1000)
-        } else {
-          item.reject(err)
-        }
-      }
-    }
-  }
-
-  run()
-}

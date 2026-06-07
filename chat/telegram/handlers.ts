@@ -10,7 +10,6 @@ interface HandlerDeps {
   bot: Bot
   chatInstanceRef: { current: ChatInstance | undefined }
   encodeThreadId: (id: number) => string
-  decodeThreadId: (id: string) => number
   parseMessage: (raw: object, text?: string, entities?: TelegramEntity[]) => Message<object>
   parseAuthor: (from?: Record<string, unknown>) => {
     userId: string
@@ -517,8 +516,6 @@ export function registerHandlers(deps: HandlerDeps): void {
     if (!ctx.callbackQuery || !chatInstanceRef.current) return
     await handleCallbackQuery(ctx)
   })
-
-  bot.on("my_chat_member", async (_ctx) => {})
 
   bot.on("message", async (ctx) => {
     if (!ctx.message || !chatInstanceRef.current) return

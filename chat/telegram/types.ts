@@ -3,9 +3,6 @@ export interface TelegramAdapterConfig {
   userName?: string
 
   webhookUrl?: string
-  webhookHost?: string
-  webhookPort?: number
-  webhookPath?: string
   webhookSecret?: string
 
   allowedUpdates?: string[]
@@ -19,7 +16,6 @@ export interface TelegramAdapterConfig {
   disableLinkPreviews?: boolean
   observeUnmentionedGroupMessages?: boolean
   observeForwardFilter?: string
-  unauthorizedDmBehavior?: "pair" | "ignore" | "reply_guide"
   errorAlertChatId?: number | string
 
   maxDocumentBytes?: number
@@ -28,8 +24,6 @@ export interface TelegramAdapterConfig {
   botShortDescription?: string
   botDescription?: string
 
-  fallbackIps?: string[]
-
   persistThreadHistory?: boolean
 
   mediaGroupDebounceMs?: number
@@ -37,38 +31,6 @@ export interface TelegramAdapterConfig {
 }
 
 export type TelegramThreadId = number
-
-export interface QueuedMessage {
-  chatId: number
-  text: string
-  parseMode?: "HTML" | "MarkdownV2"
-  replyToMessageId?: number
-  messageThreadId?: number
-  disableLinkPreview?: boolean
-  replyMarkup?: Record<string, unknown>
-  resolve: (result: { messageId: number }) => void
-  reject: (error: unknown) => void
-  isEdit?: boolean
-  editMessageId?: number
-}
-
-export interface TelegramMediaResult {
-  fileId: string
-  filePath?: string
-  mimeType?: string
-  fileName?: string
-  fileSize?: number
-  duration?: number
-  width?: number
-  height?: number
-}
-
-export interface SendResult {
-  success: boolean
-  messageId?: number
-  error?: unknown
-  retryable?: boolean
-}
 
 export interface ClarifyState {
   messageId: string
@@ -103,4 +65,4 @@ export const TELEGRAM_DEFAULT_MEDIA_GROUP_DEBOUNCE_MS = 300
 
 export const TELEGRAM_DEFAULT_MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
 
-export const TELEGRAM_COMMAND_PREFIX = "/"
+

@@ -4,12 +4,9 @@ export { startBot, stopBot } from "./polling"
 export type {
   TelegramAdapterConfig,
   TelegramThreadId,
-  QueuedMessage,
   ClarifyState,
   ConversationEntry,
   TypingState,
-  SendResult,
-  TelegramMediaResult,
 } from "./types"
 export {
   TELEGRAM_MESSAGE_MAX_LENGTH,
@@ -18,4 +15,4 @@ export {
 } from "./types"
 export { createFallbackFetch } from "./network"
 export { isCallbackUserAuthorized } from "./callback"
-export { isMessageNotModifiedError, isTransientError, sleep } from "./messages"
+export { isMessageNotModifiedError, isTransientError } from "./messages"
