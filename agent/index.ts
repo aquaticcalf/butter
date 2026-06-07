@@ -1,4 +1,4 @@
-export { createAgent } from './src/agent'
+export { createAgent } from "./src/agent"
 export type {
   ToolParam,
   ToolDef,
@@ -9,4 +9,5 @@ export type {
   SessionInfo,
   ImageAttachment,
   AgentHandle,
-} from './src/types'
+  AskPermissionHandler,
+} from "./src/types"

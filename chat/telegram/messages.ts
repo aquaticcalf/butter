@@ -57,7 +57,12 @@ export async function editMessage(
       if (disableLinkPreview) {
         editParams.link_preview_options = { is_disabled: true }
       }
-      const result = await bot.api.editMessageText(chatId, Number(messageId), text, editParams as never)
+      const result = await bot.api.editMessageText(
+        chatId,
+        Number(messageId),
+        text,
+        editParams as never,
+      )
 
       return {
         id: messageId,
@@ -78,7 +83,15 @@ export async function editMessage(
     try {
       await bot.api.deleteMessage(chatId, Number(messageId))
     } catch {}
-    return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
+    return sendOrEditMessage(
+      bot,
+      config,
+      converter,
+      decodeThreadId,
+      encodeThreadId,
+      chatId,
+      message,
+    )
   }
 
   try {
@@ -138,7 +151,12 @@ export async function copyMessage(
   }
   if (options?.caption !== undefined) copyParams.caption = options.caption
   if (options?.parseMode !== undefined) copyParams.parse_mode = options.parseMode
-  const result = await bot.api.copyMessage(toChatId, fromChatId, Number(messageId), copyParams as never)
+  const result = await bot.api.copyMessage(
+    toChatId,
+    fromChatId,
+    Number(messageId),
+    copyParams as never,
+  )
   return {
     id: String(result.message_id),
     threadId: toThreadId,
@@ -239,7 +257,12 @@ async function prepareMessage(
     }
   }
 
-  const result: { text: string; parseMode: "HTML" | "MarkdownV2" | undefined; keyboard: Record<string, unknown> | undefined; disableLinkPreview: boolean | undefined } = { text, parseMode, keyboard, disableLinkPreview }
+  const result: {
+    text: string
+    parseMode: "HTML" | "MarkdownV2" | undefined
+    keyboard: Record<string, unknown> | undefined
+    disableLinkPreview: boolean | undefined
+  } = { text, parseMode, keyboard, disableLinkPreview }
   return result
 }
 
@@ -334,5 +357,3 @@ export function isTransientError(err: unknown): boolean {
   }
   return false
 }
-
-

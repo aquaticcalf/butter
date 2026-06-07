@@ -1,20 +1,37 @@
-import { createAgentSession, AuthStorage, ModelRegistry, SessionManager, defineTool, getAgentDir, type CreateAgentSessionOptions, type AgentSession, type AgentSessionEvent } from '@earendil-works/pi-coding-agent'
-import { Type } from 'typebox'
-import type { TSchema } from 'typebox'
-import type { AgentConfig, AgentEvent, AgentHandle, ImageAttachment, SessionInfo, ToolDef } from './types'
+import {
+  createAgentSession,
+  AuthStorage,
+  ModelRegistry,
+  SessionManager,
+  defineTool,
+  getAgentDir,
+  type CreateAgentSessionOptions,
+  type AgentSession,
+  type AgentSessionEvent,
+} from "@earendil-works/pi-coding-agent"
+import { Type } from "typebox"
+import type { TSchema } from "typebox"
+import type {
+  AgentConfig,
+  AgentEvent,
+  AgentHandle,
+  ImageAttachment,
+  SessionInfo,
+  ToolDef,
+} from "./types"
 
 function toPiTool(tool: ToolDef) {
   const props: Record<string, TSchema> = {}
   for (const [key, param] of Object.entries(tool.parameters)) {
     const opts = param.description ? { description: param.description } : undefined
     switch (param.type) {
-      case 'string':
+      case "string":
         props[key] = Type.String(opts)
         break
-      case 'number':
+      case "number":
         props[key] = Type.Number(opts)
         break
-      case 'boolean':
+      case "boolean":
         props[key] = Type.Boolean(opts)
         break
     }
@@ -27,7 +44,7 @@ function toPiTool(tool: ToolDef) {
     parameters: Type.Object(props),
     execute: async (_toolCallId: string, params: unknown, signal: AbortSignal | undefined) => {
       const text = await tool.execute(params as Record<string, unknown>, signal)
-      return { content: [{ type: 'text' as const, text }], details: {} }
+      return { content: [{ type: "text" as const, text }], details: {} }
     },
   })
 }
@@ -56,25 +73,30 @@ class AgentHandleImpl implements AgentHandle {
 
     const unsub = this._session.subscribe((event: AgentSessionEvent) => {
       switch (event.type) {
-        case 'message_update': {
+        case "message_update": {
           const e = event.assistantMessageEvent
-          if (e.type === 'text_delta') {
-            push({ type: 'text', delta: e.delta })
-          } else if (e.type === 'thinking_delta') {
-            push({ type: 'thinking', delta: e.delta })
+          if (e.type === "text_delta") {
+            push({ type: "text", delta: e.delta })
+          } else if (e.type === "thinking_delta") {
+            push({ type: "thinking", delta: e.delta })
           }
           break
         }
-        case 'tool_execution_start':
-          push({ type: 'tool_start', name: event.toolName, args: event.args })
+        case "tool_execution_start":
+          push({ type: "tool_start", name: event.toolName, args: event.args })
           break
-        case 'tool_execution_update':
-          push({ type: 'tool_update', name: event.toolName, partial: event.partialResult })
+        case "tool_execution_update":
+          push({ type: "tool_update", name: event.toolName, partial: event.partialResult })
           break
-        case 'tool_execution_end':
-          push({ type: 'tool_end', name: event.toolName, result: event.result, isError: event.isError })
+        case "tool_execution_end":
+          push({
+            type: "tool_end",
+            name: event.toolName,
+            result: event.result,
+            isError: event.isError,
+          })
           break
-        case 'agent_end':
+        case "agent_end":
           done = true
           if (resolve) {
             resolve()
@@ -85,7 +107,13 @@ class AgentHandleImpl implements AgentHandle {
     })
 
     const promptOpts = images
-      ? { images: images.map(i => ({ type: 'image' as const, data: i.data, mimeType: i.mimeType })) }
+      ? {
+          images: images.map((i) => ({
+            type: "image" as const,
+            data: i.data,
+            mimeType: i.mimeType,
+          })),
+        }
       : undefined
 
     this._session.prompt(text, promptOpts).catch((err: Error) => {
@@ -103,9 +131,11 @@ class AgentHandleImpl implements AgentHandle {
         }
         if (done) break
         if (promptError) throw promptError
-        await new Promise<void>(r => { resolve = r })
+        await new Promise<void>((r) => {
+          resolve = r
+        })
       }
-      yield { type: 'done' as const }
+      yield { type: "done" as const }
     } finally {
       unsub()
     }
@@ -155,10 +185,10 @@ export async function createAgent(config: AgentConfig = {}): Promise<AgentHandle
 
   let sessionManager: SessionManager
   switch (config.session?.mode) {
-    case 'continue':
+    case "continue":
       sessionManager = SessionManager.continueRecent(cwd)
       break
-    case 'inmemory':
+    case "inmemory":
       sessionManager = SessionManager.inMemory(cwd)
       break
     default:
@@ -170,7 +200,7 @@ export async function createAgent(config: AgentConfig = {}): Promise<AgentHandle
 
   if (config.tools) {
     for (const t of config.tools) {
-      if (typeof t === 'string') {
+      if (typeof t === "string") {
         toolNames.push(t)
       } else {
         customTools.push(toPiTool(t))
@@ -191,6 +221,16 @@ export async function createAgent(config: AgentConfig = {}): Promise<AgentHandle
   if (customTools.length > 0) opts.customTools = customTools
 
   const { session } = await createAgentSession(opts)
+
+  if (config.askPermission) {
+    const ask = config.askPermission
+    const orig = session.agent.beforeToolCall
+    session.agent.beforeToolCall = async (ctx, signal) => {
+      const result = await ask(ctx.toolCall.name, ctx.args as Record<string, unknown>)
+      if (!result.allow) return { block: true, reason: result.reason ?? "Permission denied" }
+      return orig ? orig(ctx, signal) : undefined
+    }
+  }
 
   if (config.model?.thinkingLevel) {
     session.setThinkingLevel(config.model.thinkingLevel)

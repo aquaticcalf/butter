@@ -1,6 +1,29 @@
 import { BaseFormatConverter, type FormatConverter } from "chat"
-import type { Root as MdastRoot, Content as MdastContent, Text as MdastText, Paragraph, Strong, Emphasis, Delete, InlineCode, Code as MdastCode, Link } from "chat"
-import type { RootContent, Text, Bold, Italic, Underline, Strikethrough, Spoiler, Code, Pre, TextLink, TextMention } from "@qz/tgast"
+import type {
+  Root as MdastRoot,
+  Content as MdastContent,
+  Text as MdastText,
+  Paragraph,
+  Strong,
+  Emphasis,
+  Delete,
+  InlineCode,
+  Code as MdastCode,
+  Link,
+} from "chat"
+import type {
+  RootContent,
+  Text,
+  Bold,
+  Italic,
+  Underline,
+  Strikethrough,
+  Spoiler,
+  Code,
+  Pre,
+  TextLink,
+  TextMention,
+} from "@qz/tgast"
 
 export interface TelegramEntity {
   type: string
@@ -121,9 +144,21 @@ function buildTgastNode(entity: TelegramEntity, children: RootContent[]): RootCo
     case "pre":
       return { type: "pre", value: childrenValue(children), language: entity.language } as Pre
     case "text_link":
-      return { type: "text_link", value: childrenValue(children), url: entity.url || "" } as TextLink
+      return {
+        type: "text_link",
+        value: childrenValue(children),
+        url: entity.url || "",
+      } as TextLink
     case "text_mention":
-      return { type: "text_mention", value: childrenValue(children), user: { id: entity.user?.id ?? 0, first_name: entity.user?.first_name ?? "", is_bot: entity.user?.is_bot } } as TextMention
+      return {
+        type: "text_mention",
+        value: childrenValue(children),
+        user: {
+          id: entity.user?.id ?? 0,
+          first_name: entity.user?.first_name ?? "",
+          is_bot: entity.user?.is_bot,
+        },
+      } as TextMention
     default:
       return children.length > 0 ? children[0]! : tgastText("")
   }
@@ -147,9 +182,17 @@ function tgastToMdast(children: RootContent[]): MdastContent[] {
       case "pre":
         return { type: "code", lang: node.language || null, value: node.value } as MdastCode
       case "text_link":
-        return { type: "link", url: node.url, children: [{ type: "text", value: node.value }] } as Link
+        return {
+          type: "link",
+          url: node.url,
+          children: [{ type: "text", value: node.value }],
+        } as Link
       case "text_mention":
-        return { type: "link", url: `tg://user?id=${node.user.id}`, children: [{ type: "text", value: node.value }] } as Link
+        return {
+          type: "link",
+          url: `tg://user?id=${node.user.id}`,
+          children: [{ type: "text", value: node.value }],
+        } as Link
       case "text":
         return { type: "text", value: node.value } as MdastText
       default:
@@ -167,7 +210,14 @@ export class TelegramConverter extends BaseFormatConverter implements FormatConv
   }
 
   private mdastNodeToHtml(node: MdastContent): string {
-    const n = node as unknown as { type: string; children?: MdastContent[]; value?: string; lang?: string; url?: string; ordered?: boolean }
+    const n = node as unknown as {
+      type: string
+      children?: MdastContent[]
+      value?: string
+      lang?: string
+      url?: string
+      ordered?: boolean
+    }
     switch (n.type) {
       case "paragraph":
         return n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")
@@ -203,16 +253,20 @@ export class TelegramConverter extends BaseFormatConverter implements FormatConv
         return `<blockquote>${n.children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")}</blockquote>`
 
       case "list":
-        return n.children!
-          .map((item: MdastContent, i: number) => {
+        return n
+          .children!.map((item: MdastContent, i: number) => {
             if (item.type !== "listItem") return ""
             const prefix = n.ordered ? `${i + 1}. ` : "• "
-            return (item as unknown as { children: MdastContent[] }).children!.map((c: MdastContent) => `${prefix}${this.mdastNodeToHtml(c)}`).join("\n")
+            return (item as unknown as { children: MdastContent[] })
+              .children!.map((c: MdastContent) => `${prefix}${this.mdastNodeToHtml(c)}`)
+              .join("\n")
           })
           .join("\n")
 
       case "listItem":
-        return (n as unknown as { children: MdastContent[] }).children!.map((c: MdastContent) => this.mdastNodeToHtml(c)).join("")
+        return (n as unknown as { children: MdastContent[] })
+          .children!.map((c: MdastContent) => this.mdastNodeToHtml(c))
+          .join("")
 
       default:
         if ("children" in node) {
