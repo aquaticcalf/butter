@@ -229,6 +229,25 @@ importers:
         specifier: ^1.1.38
         version: 1.1.38
 
+  app:
+    dependencies:
+      agent:
+        specifier: workspace:*
+        version: link:../agent
+      better-sqlite3:
+        specifier: ^12.10.0
+        version: 12.10.0
+      chat:
+        specifier: workspace:*
+        version: link:../chat
+      db:
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
+
   chat:
     dependencies:
       chat:

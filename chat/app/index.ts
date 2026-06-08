@@ -26,4 +26,15 @@ export async function createApp(config: AppConfig) {
 export { TelegramAdapter, createMemoryState }
 export type { TelegramAdapterConfig }
 export { Chat } from "chat"
-export type { ChatConfig, Message, ThreadInfo, Author, Adapter, StateAdapter } from "chat"
+export type {
+  ChatConfig,
+  ChatInstance,
+  Lock,
+  Message,
+  QueueEntry,
+  StateAdapter,
+  Thread,
+  ThreadInfo,
+  Author,
+  Adapter,
+} from "chat"
