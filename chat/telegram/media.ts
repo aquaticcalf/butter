@@ -15,13 +15,14 @@ export async function sendPhoto(
   },
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(threadId)
-  const result = await bot.api.sendPhoto(chatId, photo, {
-    caption: options?.caption,
-    parse_mode: options?.parseMode,
-    reply_markup: options?.replyMarkup as never,
+  const photoParams: Record<string, unknown> = {
+    reply_markup: options?.replyMarkup,
     message_thread_id: options?.messageThreadId,
     has_spoiler: false,
-  })
+  }
+  if (options?.caption !== undefined) photoParams.caption = options.caption
+  if (options?.parseMode !== undefined) photoParams.parse_mode = options.parseMode
+  const result = await bot.api.sendPhoto(chatId, photo as any, photoParams as never)
   return {
     id: String(result.message_id),
     threadId,
@@ -43,12 +44,13 @@ export async function sendDocument(
   },
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(threadId)
-  const result = await bot.api.sendDocument(chatId, document, {
-    caption: options?.caption,
-    parse_mode: options?.parseMode,
-    reply_markup: options?.replyMarkup as never,
+  const docParams: Record<string, unknown> = {
+    reply_markup: options?.replyMarkup,
     message_thread_id: options?.messageThreadId,
-  })
+  }
+  if (options?.caption !== undefined) docParams.caption = options.caption
+  if (options?.parseMode !== undefined) docParams.parse_mode = options.parseMode
+  const result = await bot.api.sendDocument(chatId, document as any, docParams as never)
   return {
     id: String(result.message_id),
     threadId,
@@ -68,11 +70,12 @@ export async function sendVoice(
   },
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(threadId)
-  const result = await bot.api.sendVoice(chatId, voice, {
-    caption: options?.caption,
-    parse_mode: options?.parseMode,
+  const voiceParams: Record<string, unknown> = {
     message_thread_id: options?.messageThreadId,
-  })
+  }
+  if (options?.caption !== undefined) voiceParams.caption = options.caption
+  if (options?.parseMode !== undefined) voiceParams.parse_mode = options.parseMode
+  const result = await bot.api.sendVoice(chatId, voice as any, voiceParams as never)
   return {
     id: String(result.message_id),
     threadId,
@@ -97,7 +100,7 @@ export async function sendMediaGroup(
     media: m.media,
     caption: m.caption,
     parse_mode: m.parseMode,
-  }))
+  })) as any
   const results = await bot.api.sendMediaGroup(chatId, inputMedia)
   return results.map((r) => ({
     id: String(r.message_id),
@@ -116,11 +119,12 @@ export async function sendPoll(
   correctOptionId?: number,
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(threadId)
-  const result = await bot.api.sendPoll(chatId, question, options, {
-    type: pollType,
-    correct_option_id: correctOptionId,
+  const pollParams: Record<string, unknown> = {
+    correct_option_ids: correctOptionId,
     is_anonymous: true,
-  })
+  }
+  if (pollType !== undefined) pollParams.type = pollType
+  const result = await bot.api.sendPoll(chatId, question, options, pollParams as never)
   return {
     id: String(result.message_id),
     threadId,
@@ -137,7 +141,7 @@ export async function sendDice(
   const chatId = decodeThreadId(threadId)
   const result = await bot.api.sendDice(chatId, {
     emoji: emoji ?? "🎲",
-  })
+  } as never)
   return {
     id: String(result.message_id),
     threadId,

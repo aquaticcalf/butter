@@ -16,8 +16,8 @@ export async function fetchThread(
       channelVisibility: mapChatTypeToVisibility(chat.type),
       metadata: {
         type: chat.type,
-        title: (chat as Record<string, unknown>).title,
-        username: (chat as Record<string, unknown>).username,
+        title: (chat as unknown as Record<string, unknown>).title,
+        username: (chat as unknown as Record<string, unknown>).username,
       },
     }
   } catch {
@@ -48,15 +48,15 @@ export async function fetchChannelInfo(
     return {
       id: channelId,
       name:
-        ((chat as Record<string, unknown>).title as string) ??
-        ((chat as Record<string, unknown>).first_name as string),
+        ((chat as unknown as Record<string, unknown>).title as string) ??
+        ((chat as unknown as Record<string, unknown>).first_name as string),
       isDM: chat.type === "private",
       channelVisibility: mapChatTypeToVisibility(chat.type),
       metadata: {
         type: chat.type,
-        username: (chat as Record<string, unknown>).username,
-        description: (chat as Record<string, unknown>).description,
-        inviteLink: (chat as Record<string, unknown>).invite_link,
+        username: (chat as unknown as Record<string, unknown>).username,
+        description: (chat as unknown as Record<string, unknown>).description,
+        inviteLink: (chat as unknown as Record<string, unknown>).invite_link,
       },
     }
   } catch {
@@ -75,11 +75,14 @@ export async function fetchMessages(
   const limit = options?.limit ?? 50
 
   try {
-    const result = await bot.api.getUpdates({
-      offset: options?.cursor ? Number(options.cursor) : undefined,
+    const getUpdatesParams: Record<string, unknown> = {
       limit: Math.min(limit, 100),
       allowed_updates: ["message"],
-    })
+    }
+    if (options?.cursor) {
+      getUpdatesParams.offset = Number(options.cursor)
+    }
+    const result = await bot.api.getUpdates(getUpdatesParams as never)
 
     const messages = result
       .filter((u) => u.message)
@@ -88,7 +91,11 @@ export async function fetchMessages(
     const lastUpdate = result[result.length - 1]
     const nextCursor = lastUpdate ? String(lastUpdate.update_id + 1) : undefined
 
-    return { messages, nextCursor }
+    const fetchResult: { messages: Message<object>[]; nextCursor?: string } = { messages }
+    if (nextCursor !== undefined) {
+      fetchResult.nextCursor = nextCursor
+    }
+    return fetchResult
   } catch {
     return { messages: [] }
   }
@@ -126,8 +133,8 @@ export async function getUser(
     const chat = await bot.api.getChat(Number(userId))
     return {
       userId: String(chat.id),
-      userName: ((chat as Record<string, unknown>).username as string) ?? "",
-      fullName: ((chat as Record<string, unknown>).first_name as string) ?? "",
+      userName: ((chat as unknown as Record<string, unknown>).username as string) ?? "",
+      fullName: ((chat as unknown as Record<string, unknown>).first_name as string) ?? "",
       isBot: false,
     }
   } catch {
@@ -152,15 +159,15 @@ export async function getChatAdministrators(
   const chatId = decodeThreadId(threadId)
   try {
     const admins = await bot.api.getChatAdministrators(chatId)
-    return admins.map((a) => ({
-      user: {
+    return admins.map((a) => {
+      const user: { id: number; username?: string; first_name: string; last_name?: string } = {
         id: a.user.id,
-        username: a.user.username,
         first_name: a.user.first_name,
-        last_name: a.user.last_name,
-      },
-      status: a.status,
-    }))
+      }
+      if (a.user.username !== undefined) user.username = a.user.username
+      if (a.user.last_name !== undefined) user.last_name = a.user.last_name
+      return { user, status: a.status }
+    })
   } catch {
     return []
   }

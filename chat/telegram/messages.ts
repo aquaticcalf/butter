@@ -2,7 +2,7 @@ import { type RawMessage, type AdapterPostableMessage, parseMarkdown } from "cha
 import { GrammyError, HttpError } from "grammy"
 import type { Bot } from "grammy"
 import { TelegramConverter } from "./converter"
-import type { TelegramAdapterConfig, QueuedMessage } from "./types"
+import type { TelegramAdapterConfig } from "./types"
 import { TELEGRAM_MESSAGE_MAX_LENGTH } from "./types"
 
 export async function postMessage(
@@ -11,23 +11,11 @@ export async function postMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   threadId: string,
   message: AdapterPostableMessage,
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(threadId)
-  return sendOrEditMessage(
-    bot,
-    config,
-    converter,
-    decodeThreadId,
-    encodeThreadId,
-    pendingMessages,
-    startSender,
-    chatId,
-    message,
-  )
+  return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
 }
 
 export async function postChannelMessage(
@@ -36,23 +24,11 @@ export async function postChannelMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   channelId: string,
   message: AdapterPostableMessage,
 ): Promise<RawMessage<object>> {
   const chatId = decodeThreadId(channelId)
-  return sendOrEditMessage(
-    bot,
-    config,
-    converter,
-    decodeThreadId,
-    encodeThreadId,
-    pendingMessages,
-    startSender,
-    chatId,
-    message,
-  )
+  return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
 }
 
 export async function editMessage(
@@ -61,8 +37,6 @@ export async function editMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   threadId: string,
   messageId: string,
   message: AdapterPostableMessage,
@@ -76,11 +50,19 @@ export async function editMessage(
 
   if (text.length <= TELEGRAM_MESSAGE_MAX_LENGTH) {
     try {
-      const result = await bot.api.editMessageText(chatId, Number(messageId), text, {
+      const editParams: Record<string, unknown> = {
         parse_mode: parseMode,
-        reply_markup: keyboard as never,
-        link_preview_options: disableLinkPreview ? { is_disabled: true } : undefined,
-      })
+        reply_markup: keyboard,
+      }
+      if (disableLinkPreview) {
+        editParams.link_preview_options = { is_disabled: true }
+      }
+      const result = await bot.api.editMessageText(
+        chatId,
+        Number(messageId),
+        text,
+        editParams as never,
+      )
 
       return {
         id: messageId,
@@ -107,8 +89,6 @@ export async function editMessage(
       converter,
       decodeThreadId,
       encodeThreadId,
-      pendingMessages,
-      startSender,
       chatId,
       message,
     )
@@ -118,17 +98,7 @@ export async function editMessage(
     await bot.api.deleteMessage(chatId, Number(messageId))
   } catch {}
 
-  return sendOrEditMessage(
-    bot,
-    config,
-    converter,
-    decodeThreadId,
-    encodeThreadId,
-    pendingMessages,
-    startSender,
-    chatId,
-    message,
-  )
+  return sendOrEditMessage(bot, config, converter, decodeThreadId, encodeThreadId, chatId, message)
 }
 
 export async function deleteMessage(
@@ -176,11 +146,17 @@ export async function copyMessage(
 ): Promise<RawMessage<object>> {
   const fromChatId = decodeThreadId(fromThreadId)
   const toChatId = decodeThreadId(toThreadId)
-  const result = await bot.api.copyMessage(toChatId, fromChatId, Number(messageId), {
-    caption: options?.caption,
-    parse_mode: options?.parseMode,
-    reply_markup: options?.replyMarkup as never,
-  })
+  const copyParams: Record<string, unknown> = {
+    reply_markup: options?.replyMarkup,
+  }
+  if (options?.caption !== undefined) copyParams.caption = options.caption
+  if (options?.parseMode !== undefined) copyParams.parse_mode = options.parseMode
+  const result = await bot.api.copyMessage(
+    toChatId,
+    fromChatId,
+    Number(messageId),
+    copyParams as never,
+  )
   return {
     id: String(result.message_id),
     threadId: toThreadId,
@@ -194,8 +170,6 @@ async function sendOrEditMessage(
   converter: TelegramConverter,
   decodeThreadId: (id: string) => number,
   encodeThreadId: (id: number) => string,
-  pendingMessages: QueuedMessage[],
-  startSender: () => void,
   chatId: number,
   message: AdapterPostableMessage,
   replyToMessageId?: number,
@@ -211,16 +185,17 @@ async function sendOrEditMessage(
   let lastResult: RawMessage<object> | null = null
 
   for (let i = 0; i < chunks.length; i++) {
-    const chunkText = chunks.length > 1 ? `${chunks[i]} (${i + 1}/${chunks.length})` : chunks[i]
+    const chunkText = chunks.length > 1 ? `${chunks[i]!} (${i + 1}/${chunks.length})` : chunks[i]!
 
-    const result = await bot.api.sendMessage(chatId, chunkText, {
-      parse_mode: parseMode,
-      reply_markup: i === 0 ? (keyboard as never) : undefined,
-      link_preview_options: disableLinkPreview ? { is_disabled: true } : undefined,
+    const sendParams: Record<string, unknown> = {
+      reply_markup: i === 0 ? keyboard : undefined,
       message_thread_id: messageThreadId,
       reply_to_message_id:
         i === 0 ? replyToMessageId : lastResult ? Number(lastResult.id) : undefined,
-    })
+    }
+    if (parseMode !== undefined) sendParams.parse_mode = parseMode
+    if (disableLinkPreview) sendParams.link_preview_options = { is_disabled: true }
+    const result = await bot.api.sendMessage(chatId, chunkText, sendParams as never)
 
     lastResult = {
       id: String(result.message_id),
@@ -238,9 +213,9 @@ async function prepareMessage(
   config: TelegramAdapterConfig,
 ): Promise<{
   text: string
-  parseMode?: "HTML" | "MarkdownV2"
-  keyboard?: Record<string, unknown>
-  disableLinkPreview?: boolean
+  parseMode: "HTML" | "MarkdownV2" | undefined
+  keyboard: Record<string, unknown> | undefined
+  disableLinkPreview: boolean | undefined
 }> {
   let text = ""
   let parseMode: "HTML" | "MarkdownV2" | undefined
@@ -271,7 +246,7 @@ async function prepareMessage(
   const keyboardMatch = text.match(/<keyboard>([\s\S]*?)<\/keyboard>/)
   if (keyboardMatch) {
     text = text.replace(/<keyboard>[\s\S]*?<\/keyboard>/, "").trim()
-    keyboard = parseKeyboardMarkup(keyboardMatch[1])
+    keyboard = parseKeyboardMarkup(keyboardMatch[1]!)
   }
 
   if (!parseMode) {
@@ -282,7 +257,13 @@ async function prepareMessage(
     }
   }
 
-  return { text, parseMode, keyboard, disableLinkPreview }
+  const result: {
+    text: string
+    parseMode: "HTML" | "MarkdownV2" | undefined
+    keyboard: Record<string, unknown> | undefined
+    disableLinkPreview: boolean | undefined
+  } = { text, parseMode, keyboard, disableLinkPreview }
+  return result
 }
 
 function containsHtmlTags(text: string): boolean {
@@ -375,59 +356,4 @@ export function isTransientError(err: unknown): boolean {
     )
   }
   return false
-}
-
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-export function processSenderQueue(
-  bot: Bot,
-  pendingMessages: QueuedMessage[],
-  senderRunningRef: { value: boolean },
-): void {
-  const run = async () => {
-    while (senderRunningRef.value) {
-      const item = pendingMessages.shift()
-      if (!item) {
-        await sleep(100)
-        continue
-      }
-
-      try {
-        let result: { message_id: number }
-
-        if (item.isEdit && item.editMessageId) {
-          const r = await bot.api.editMessageText(item.chatId, item.editMessageId, item.text, {
-            parse_mode: item.parseMode,
-            reply_markup: item.replyMarkup as never,
-            link_preview_options: item.disableLinkPreview ? { is_disabled: true } : undefined,
-          })
-          result = r as unknown as { message_id: number }
-        } else {
-          const r = await bot.api.sendMessage(item.chatId, item.text, {
-            parse_mode: item.parseMode,
-            reply_markup: item.replyMarkup as never,
-            link_preview_options: item.disableLinkPreview ? { is_disabled: true } : undefined,
-            message_thread_id: item.messageThreadId,
-            reply_to_message_id: item.replyToMessageId,
-          })
-          result = r as unknown as { message_id: number }
-        }
-
-        item.resolve({ messageId: result.message_id })
-      } catch (err) {
-        if (isMessageNotModifiedError(err)) {
-          item.resolve({ messageId: item.editMessageId ?? 0 })
-        } else if (isTransientError(err)) {
-          pendingMessages.unshift(item)
-          await sleep(1000)
-        } else {
-          item.reject(err)
-        }
-      }
-    }
-  }
-
-  run()
 }

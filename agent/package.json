@@ -2,7 +2,14 @@
   "name": "agent",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.ts"
+    }
+  },
   "dependencies": {
-    "ai": "^6.0.197"
+    "@earendil-works/pi-coding-agent": "^0.78.1",
+    "typebox": "^1.1.38"
   }
 }

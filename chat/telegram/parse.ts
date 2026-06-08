@@ -7,7 +7,7 @@ export interface ParseCtx {
   converter: TelegramConverter
   encodeThreadId: (id: number) => string
   botUsername: string
-  botUserId?: string
+  botUserId: string | undefined
   configToken: string
   botApi: Bot["api"]
 }
@@ -92,7 +92,7 @@ function extractAttachments(ctx: ParseCtx, msg: Record<string, unknown>): Attach
       }>
     | undefined
   if (photo && photo.length > 0) {
-    const largest = photo[photo.length - 1]
+    const largest = photo[photo.length - 1]!
     attachments.push({
       type: "image",
       name: `photo_${largest.file_unique_id}.jpg`,

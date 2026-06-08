@@ -8,9 +8,8 @@ import * as callback from "./callback"
 
 interface HandlerDeps {
   bot: Bot
-  chatInstanceRef: { current?: ChatInstance }
+  chatInstanceRef: { current: ChatInstance | undefined }
   encodeThreadId: (id: number) => string
-  decodeThreadId: (id: string) => number
   parseMessage: (raw: object, text?: string, entities?: TelegramEntity[]) => Message<object>
   parseAuthor: (from?: Record<string, unknown>) => {
     userId: string
@@ -518,8 +517,6 @@ export function registerHandlers(deps: HandlerDeps): void {
     await handleCallbackQuery(ctx)
   })
 
-  bot.on("my_chat_member", async (_ctx) => {})
-
   bot.on("message", async (ctx) => {
     if (!ctx.message || !chatInstanceRef.current) return
     if (!ctx.message.forward_origin) return
@@ -584,7 +581,7 @@ export function registerHandlers(deps: HandlerDeps): void {
   async function handleMediaGroupOrSingle(ctx: Context): Promise<void> {
     if (!chatInstanceRef.current || !ctx.message) return
 
-    const msg = ctx.message as Record<string, unknown>
+    const msg = ctx.message as unknown as Record<string, unknown>
     const mediaGroupId = msg.media_group_id as string | undefined
 
     if (!mediaGroupId) {
@@ -621,13 +618,13 @@ export function registerHandlers(deps: HandlerDeps): void {
 
   function mergeMediaGroupEvents(events: object[]): Message<object> | null {
     if (events.length === 0) return null
-    const first = parseMessage(events[0])
+    const first = parseMessage(events[0]!)
     const attachments: Attachment[] = [...first.attachments]
 
     let mergedCaption = first.text || ""
 
     for (let i = 1; i < events.length; i++) {
-      const next = parseMessage(events[i])
+      const next = parseMessage(events[i]!)
       attachments.push(...next.attachments)
 
       if (next.text && !mergedCaption.includes(next.text)) {
@@ -646,7 +643,7 @@ export function registerHandlers(deps: HandlerDeps): void {
   async function handleCallbackQuery(ctx: Context): Promise<void> {
     if (!ctx.callbackQuery) return
     if (chatInstanceRef.current) {
-      const cq = ctx.callbackQuery as Record<string, unknown>
+      const cq = ctx.callbackQuery as unknown as Record<string, unknown>
       const from = cq.from as Record<string, unknown> | undefined
       const message = cq.message as Record<string, unknown> | undefined
       const chat = message?.chat as Record<string, unknown> | undefined
@@ -655,7 +652,7 @@ export function registerHandlers(deps: HandlerDeps): void {
       if (data?.startsWith("clarify:")) {
         const parts = data.split(":")
         if (parts.length >= 3) {
-          const clarifyId = parts[1]
+          const clarifyId = parts[1]!
           const choiceToken = parts.slice(2).join(":")
           const state = clarifyStates.get(clarifyId)
 

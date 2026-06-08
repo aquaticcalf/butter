@@ -88,12 +88,12 @@ export async function answerCallbackQuery(
   options?: { text?: string; showAlert?: boolean; url?: string; cacheTime?: number },
 ): Promise<void> {
   try {
-    await bot.api.answerCallbackQuery(callbackQueryId, {
-      text: options?.text,
-      show_alert: options?.showAlert,
-      url: options?.url,
-      cache_time: options?.cacheTime,
-    })
+    const params: Record<string, unknown> = {}
+    if (options?.text !== undefined) params.text = options.text
+    if (options?.showAlert !== undefined) params.show_alert = options.showAlert
+    if (options?.url !== undefined) params.url = options.url
+    if (options?.cacheTime !== undefined) params.cache_time = options.cacheTime
+    await bot.api.answerCallbackQuery(callbackQueryId, params as never)
   } catch {}
 }
 
