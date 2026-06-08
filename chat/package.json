@@ -2,6 +2,10 @@
   "name": "chat",
   "private": true,
   "type": "module",
+  "exports": {
+    "./app": "./app/index.ts",
+    "./telegram": "./telegram/index.ts"
+  },
   "dependencies": {
     "chat": "^4.30.0",
     "grammy": "^1.43.0"
