@@ -1,0 +1,21 @@
+# Butter app settings
+
+[agent]
+# Enable built-in coding tools (read, write, edit, bash)
+coding_tools = true
+# Enable read-only tools (ls, grep, find)
+readonly_tools = false
+# Include default pi skill directories
+include_default_skills = true
+
+[prompt]
+# Prompt preset to use (matches a file in prompt/ directory)
+active = "default"
+
+[telegram]
+# Guest mode: allow anyone to DM the bot
+guest_mode = false
+# Require @mention in groups
+require_mention = true
+# Observe messages in groups even without mention
+observe_unmentioned = false

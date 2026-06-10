@@ -9,10 +9,12 @@
     }
   },
   "dependencies": {
+    "@earendil-works/pi-coding-agent": "^0.78.1",
     "agent": "workspace:*",
     "better-sqlite3": "^12.10.0",
     "chat": "workspace:*",
-    "db": "workspace:*"
+    "db": "workspace:*",
+    "smol-toml": "^1.6.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13"

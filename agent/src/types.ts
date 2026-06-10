@@ -1,10 +1,10 @@
-/** A single parameter in a tool's parameter schema */
+import type { Skill } from "@earendil-works/pi-coding-agent"
+
 export interface ToolParam {
   type: "string" | "number" | "boolean"
   description?: string
 }
 
-/** A tool the LLM can call */
 export interface ToolDef {
   name: string
   description: string
@@ -12,37 +12,41 @@ export interface ToolDef {
   execute(args: Record<string, unknown>, signal?: AbortSignal): Promise<string>
 }
 
-/** Model selection */
 export interface ModelConfig {
   provider: string
   id: string
   thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh"
 }
 
-/** Session creation mode */
 export interface SessionConfig {
   mode?: "new" | "continue" | "inmemory"
   name?: string
 }
 
-/** Ask permission handler for tool execution */
 export type AskPermissionHandler = (
   toolName: string,
   args: Record<string, unknown>,
 ) => { allow: boolean; reason?: string } | Promise<{ allow: boolean; reason?: string }>
 
-/** Agent configuration */
 export interface AgentConfig {
   model?: ModelConfig
   tools?: (string | ToolDef)[]
+  skills?: Skill[]
+  systemPrompt?: string
   cwd?: string
   agentDir?: string
-  systemPrompt?: string
   session?: SessionConfig
   askPermission?: AskPermissionHandler
+  /** Enable built-in pi coding tools (read, write, edit, bash) */
+  codingTools?: boolean
+  /** Enable read-only tools (ls, grep, find) */
+  readOnlyTools?: boolean
+  /** Tool names to explicitly enable */
+  toolAllowlist?: string[]
+  /** Tool names to disable */
+  toolDenylist?: string[]
 }
 
-/** A single event yielded by agent.prompt() */
 export type AgentEvent =
   | { type: "text"; delta: string }
   | { type: "thinking"; delta: string }
@@ -52,7 +56,6 @@ export type AgentEvent =
   | { type: "done" }
   | { type: "error"; message: string }
 
-/** Read-only snapshot of session state */
 export interface SessionInfo {
   id: string
   file: string | undefined
@@ -62,13 +65,11 @@ export interface SessionInfo {
   model: { provider: string; id: string } | undefined
 }
 
-/** Image attachment for prompts */
 export interface ImageAttachment {
   data: string
   mimeType: string
 }
 
-/** Handle returned by createAgent() */
 export interface AgentHandle {
   prompt(text: string, images?: ImageAttachment[]): AsyncGenerator<AgentEvent>
   abort(): Promise<void>

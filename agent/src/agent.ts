@@ -5,9 +5,11 @@ import {
   SessionManager,
   defineTool,
   getAgentDir,
+  formatSkillsForPrompt,
   type CreateAgentSessionOptions,
   type AgentSession,
   type AgentSessionEvent,
+  type ToolDefinition,
 } from "@earendil-works/pi-coding-agent"
 import { Type } from "typebox"
 import type { TSchema } from "typebox"
@@ -20,7 +22,7 @@ import type {
   ToolDef,
 } from "./types"
 
-function toPiTool(tool: ToolDef) {
+function toPiTool(tool: ToolDef): ToolDefinition {
   const props: Record<string, TSchema> = {}
   for (const [key, param] of Object.entries(tool.parameters)) {
     const opts = param.description ? { description: param.description } : undefined
@@ -195,18 +197,29 @@ export async function createAgent(config: AgentConfig = {}): Promise<AgentHandle
       sessionManager = SessionManager.create(cwd)
   }
 
-  const customTools: ReturnType<typeof toPiTool>[] = []
-  const toolNames: string[] = []
+  const allToolNames: string[] = []
+  const allCustomTools: ToolDefinition[] = []
 
-  if (config.tools) {
-    for (const t of config.tools) {
-      if (typeof t === "string") {
-        toolNames.push(t)
-      } else {
-        customTools.push(toPiTool(t))
-        toolNames.push(t.name)
-      }
+  if (config.codingTools ?? true) {
+    allToolNames.push("read", "bash", "edit", "write")
+  }
+
+  if (config.readOnlyTools) {
+    allToolNames.push("ls", "grep", "find")
+  }
+
+  for (const t of config.tools ?? []) {
+    if (typeof t === "string") {
+      allToolNames.push(t)
+    } else {
+      allCustomTools.push(toPiTool(t))
+      allToolNames.push(t.name)
     }
+  }
+
+  if (config.toolAllowlist && config.toolAllowlist.length > 0) {
+    allToolNames.length = 0
+    allToolNames.push(...config.toolAllowlist)
   }
 
   const opts: CreateAgentSessionOptions = {
@@ -217,15 +230,29 @@ export async function createAgent(config: AgentConfig = {}): Promise<AgentHandle
     modelRegistry,
   }
   if (model) opts.model = model
-  if (toolNames.length > 0) opts.tools = toolNames
-  if (customTools.length > 0) opts.customTools = customTools
+  if (allToolNames.length > 0) opts.tools = allToolNames
+  if (allCustomTools.length > 0) opts.customTools = allCustomTools
+  if (config.toolDenylist) opts.excludeTools = config.toolDenylist
 
   const { session } = await createAgentSession(opts)
+
+  if (config.systemPrompt || (config.skills && config.skills.length > 0)) {
+    let prompt = config.systemPrompt ?? ""
+    if (config.skills && config.skills.length > 0) {
+      const skillsText = formatSkillsForPrompt(config.skills)
+      if (skillsText) {
+        prompt = prompt ? `${prompt}\n\n${skillsText}` : skillsText
+      }
+    }
+    if (prompt) {
+      ;(session as any).systemPrompt = prompt
+    }
+  }
 
   if (config.askPermission) {
     const ask = config.askPermission
     const orig = session.agent.beforeToolCall
-    session.agent.beforeToolCall = async (ctx, signal) => {
+    session.agent.beforeToolCall = async (ctx: any, signal: any) => {
       const result = await ask(ctx.toolCall.name, ctx.args as Record<string, unknown>)
       if (!result.allow) return { block: true, reason: result.reason ?? "Permission denied" }
       return orig ? orig(ctx, signal) : undefined

@@ -4,6 +4,7 @@ packages:
   - "chat"
   - "db"
 allowBuilds:
-  "@google/genai": set this to true or false
+  "@google/genai": true
   better-sqlite3: true
-  protobufjs: set this to true or false
+  esbuild: true
+  protobufjs: true

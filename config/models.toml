@@ -1,0 +1,12 @@
+# Model configuration
+# Providers and models available to the agent.
+# The first available model will be used by default.
+
+[models]
+# Default model — set provider and model id
+# provider = "anthropic"
+# model = "claude-sonnet-4-20250514"
+
+# [models.overrides]
+# You can override provider base URLs or add custom models here.
+# See pi docs for full format: https://pi.dev/docs/models
