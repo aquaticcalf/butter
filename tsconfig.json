@@ -16,6 +16,13 @@
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "agent": ["./agent/index.ts"],
+      "app": ["./app/src/index.ts"],
+      "chat/app": ["./chat/app/index.ts"],
+      "chat/telegram": ["./chat/telegram/index.ts"],
+      "db": ["./db/src/index.ts"]
+    }
   }
 }
